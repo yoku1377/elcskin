@@ -1,0 +1,25 @@
+# JavaScript dependencies and generated output
+**/node_modules/
+**/build/
+**/dist/
+**/dist-electron/
+
+# Python bytecode
+**/__pycache__/
+*.py[cod]
+
+# Local tooling and environment files
+**/.playwright-mcp/
+**/.claude/settings.local.json
+.env
+.env.*
+
+# Packaged releases and local utilities
+*.zip
+*.exe
+*.hex
+
+# OS/editor temporary files
+.DS_Store
+Thumbs.db
+*tmp_pdf_out.txt

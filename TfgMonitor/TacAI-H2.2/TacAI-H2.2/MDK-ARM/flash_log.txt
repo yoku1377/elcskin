@@ -1,0 +1,3 @@
+Load "finger-gen0\\finger-gen0.axf" 
+Erase Done.Programming Done.Verify OK.Application running ...
+Flash Load finished at 20:48:10

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(if \\(Test-Path \"C:\\\\Keil_v5\\\\UV4\\\\UV4.exe\"\\) { \"C:\\\\Keil_v5\\\\UV4\\\\UV4.exe\" } elseif \\(Test-Path \"$env:LOCALAPPDATA\\\\Keil_v5\\\\UV4\\\\UV4.exe\"\\) { \"$env:LOCALAPPDATA\\\\Keil_v5\\\\UV4\\\\UV4.exe\" } else { Get-ChildItem \"C:\\\\\" -Recurse -Filter \"UV4.exe\" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName })",
+      "PowerShell($a = Get-FileHash \"D:\\\\202605\\\\5.电子皮肤\\\\tacaih2.2.hex\" -Algorithm MD5; $b = Get-FileHash \"D:\\\\202605\\\\5.电子皮肤\\\\TfgMonitor\\\\TacAI-H2.2\\\\TacAI-H2.2\\\\MDK-ARM\\\\finger-gen0\\\\tacaih2.2.hex\" -Algorithm MD5; \"电子皮肤\\\\: $\\($a.Hash\\)\"; \"finger-gen0\\\\: $\\($b.Hash\\)\"; if \\($a.Hash -eq $b.Hash\\) { \"内容完全相同\" } else { \"内容不同\" })"
+    ]
+  }
+}

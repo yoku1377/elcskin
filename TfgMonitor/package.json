@@ -1,0 +1,92 @@
+{
+  "name": "gliix",
+  "version": "1.0.3",
+  "main": "src/main.js",
+  "homepage": "./",
+  "config": {
+    "appDir": "D:\\share"
+  },
+  "scripts": {
+    "start": "cross-env ELECTRON_RUN_AS_NODE= electron .",
+    "dev": "concurrently \"npm run react-dev\" \"npm run electron-dev\" --prefix $npm_package_config_appDir",
+    "react-dev": "react-scripts start --prefix $npm_package_config_appDir",
+    "electron-dev": "cross-env NODE_ENV=development electron . --prefix $npm_package_config_appDir",
+    "build": "cross-env GENERATE_SOURCEMAP=false react-scripts build --prefix $npm_package_config_appDir",
+    "build:electron": "esbuild src/main.js src/preload.js --bundle --platform=node --target=node22 --external:electron --external:serialport --outdir=dist-electron --minify --legal-comments=none",
+    "test": "react-scripts test --prefix $npm_package_config_appDir",
+    "eject": "react-scripts eject --prefix $npm_package_config_appDir",
+    "dist": "npm run build && npm run build:electron && electron-builder --win --x64"
+  },
+  "dependencies": {
+    "echarts": "^6.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.8.0",
+    "serialport": "^12.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "cross-env": "^10.0.0",
+    "electron": "38.2.0",
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.28.1",
+    "react-scripts": "^5.0.1"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "build": {
+    "appId": "com.mavixx.app",
+    "productName": "GLiiX",
+    "compression": "normal",
+    "extends": null,
+    "asar": true,
+    "files": [
+      "dist-electron/**/*",
+      "build/**/*",
+      "!build/**/*.map",
+      "!**/*.map",
+      "!node_modules/@serialport/bindings-cpp/src{,/**}",
+      "!node_modules/@serialport/bindings-cpp/**/*.cpp",
+      "!node_modules/@serialport/bindings-cpp/**/*.h",
+      "!node_modules/node-addon-api/**/*.h"
+    ],
+    "extraMetadata": {
+      "main": "dist-electron/main.js"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "public/mevis.ico",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/setup_icon.ico",
+      "uninstallerIcon": "public/uninstall_icon.ico",
+      "installerHeaderIcon": "public/setup_icon.ico",
+      "installerSidebar": "public/sidebar.png",
+      "uninstallerSidebar": "public/sidebar.png",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "license": "LICENSE.txt",
+      "shortcutName": "GLiiX"
+    }
+  },
+  "packageManager": "yarn@4.6.0+sha512.5383cc12567a95f1d668fbe762dfe0075c595b4bfff433be478dbbe24e05251a8e8c3eb992a986667c1d53b6c3a9c85b8398c35a960587fbd9fa3a0915406728"
+}

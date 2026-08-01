@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "mlx90393.h": "c",
+        "log.h": "c",
+        "matrix.h": "c",
+        "xstring": "c",
+        "xutility": "c",
+        "i2c_slave.h": "c",
+        "stm32g0xx_hal.h": "c",
+        "xmemory": "c",
+        "tim.h": "c"
+    },
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda"
+}
