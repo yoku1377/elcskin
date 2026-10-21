@@ -113,5 +113,7 @@
       "bytes": 1830531,
       "sha": "aa029b543e93cd438d6d91d3822320bed9dd648d"
     }
-  ]
+  ],
+  "existing_release_id": 419051061,
+  "publisher_revision": 2
 }

@@ -29,8 +29,10 @@ jobs:
           from pathlib import Path
           import re
           import subprocess
+          import time
           import urllib.error
           import urllib.request
+          import uuid
           
           REPO = os.environ['GITHUB_REPOSITORY']
           COMMIT = os.environ['GITHUB_SHA']
@@ -39,11 +41,13 @@ jobs:
           API = 'https://api.github.com/repos/' + REPO
           
           def get(path, missing=False):
-              request = urllib.request.Request(API + path, headers={
+              separator = '&' if '?' in path else '?'
+              request = urllib.request.Request(API + path + separator + '_tacai_nonce=' + uuid.uuid4().hex, headers={
                   'Authorization': 'Bearer ' + TOKEN,
                   'User-Agent': 'TacAI-verified-release',
                   'Accept': 'application/vnd.github+json',
                   'X-GitHub-Api-Version': '2022-11-28',
+                  'Cache-Control': 'no-cache',
               })
               try:
                   with urllib.request.urlopen(request, timeout=60) as response:
@@ -52,6 +56,20 @@ jobs:
                   if missing and exc.code == 404:
                       return None
                   raise
+          
+          def write(method, path, payload):
+              assert (method == 'POST' and path == '/releases') or (
+                  method == 'PATCH' and re.fullmatch(r'/releases/[0-9]+', path))
+              request = urllib.request.Request(API + path, method=method,
+                  data=json.dumps(payload).encode('utf-8'), headers={
+                      'Authorization': 'Bearer ' + TOKEN,
+                      'User-Agent': 'TacAI-verified-release',
+                      'Accept': 'application/vnd.github+json',
+                      'Content-Type': 'application/json',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                  })
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  return json.load(response)
           
           def gh(*args):
               subprocess.run(['gh', *args, '--repo', REPO], check=True)
@@ -69,6 +87,15 @@ jobs:
                   if len(releases) < 100:
                       return None
               raise RuntimeError('Release listing exceeds the bounded search')
+          
+          def read_release_until(release_id, condition):
+              for attempt in range(8):
+                  result = get('/releases/' + str(release_id))
+                  if condition(result):
+                      return result
+                  if attempt < 7:
+                      time.sleep(1)
+              raise RuntimeError('Release metadata did not reach the expected state')
           
           manifest_file = get('/contents/.github/h3-releases/h3-v5.3.28-20261021.json?ref=' + COMMIT)
           manifest = json.loads(base64.b64decode(manifest_file['content']))
@@ -122,12 +149,30 @@ jobs:
           tag_ref = get('/git/ref/tags/' + tag, missing=True)
           if tag_ref is not None:
               assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
-          release = release_by_tag(tag)
-          if release is None:
-              gh('release', 'create', tag, '--target', COMMIT, '--title', 'TacAI H3 v5.3.28 · ZP-500N 自动采集',
-                 '--notes-file', str(notes), '--draft')
+          if manifest.get('existing_release_id') is not None:
+              assert manifest['existing_release_id'] == 419051061
+              release = get('/releases/' + str(manifest['existing_release_id']))
+              assert release['id'] == manifest['existing_release_id'] and release['tag_name'] == tag
+          else:
               release = release_by_tag(tag)
+          if release is None:
+              release = write('POST', '/releases', {
+                  'tag_name': tag, 'target_commitish': COMMIT,
+                  'name': 'TacAI H3 v5.3.28 · ZP-500N 自动采集',
+                  'body': notes.read_text(encoding='utf-8'), 'draft': True,
+              })
           assert release is not None
+          if release['target_commitish'] != COMMIT:
+              assert release['id'] == 419051061 and release['draft'] and release['assets'] == []
+              assert release['tag_name'] == tag and tag_ref is None
+              assert release['target_commitish'] == '933df4fefa06816b0a3ecb77d00a41e552b0321d'
+              previous_commit = get('/git/commits/' + release['target_commitish'])
+              previous_root = get('/git/trees/' + previous_commit['tree']['sha'])
+              previous_project, = [entry for entry in previous_root['tree'] if entry['path'] == 'TacAI-H3.0-v1']
+              assert previous_project['type'] == 'tree' and previous_project['sha'] == manifest['source_tree_sha']
+              assert get('/git/ref/tags/' + tag, missing=True) is None
+              release = write('PATCH', '/releases/' + str(release['id']), {'target_commitish': COMMIT})
+              release = read_release_until(release['id'], lambda item: item['target_commitish'] == COMMIT)
           assert release['target_commitish'] == COMMIT
           assert release['tag_name'] == tag
           tag_ref = get('/git/ref/tags/' + tag, missing=True)
@@ -143,11 +188,21 @@ jobs:
           for path in (exe, checksum):
               gh('release', 'download', tag, '--pattern', path.name, '--dir', str(verify))
               assert (verify / path.name).read_bytes() == path.read_bytes(), path.name
+          tag_ref = get('/git/ref/tags/' + tag, missing=True)
+          if tag_ref is not None:
+              assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
           if release['draft']:
               gh('release', 'edit', tag, '--draft=false', '--latest')
-          published = release_by_tag(tag)
+          published = read_release_until(release['id'], lambda item: not item['draft'] and
+              {exe.name, checksum.name}.issubset({asset['name'] for asset in item['assets']}))
           assert not published['draft']
-          tag_ref = get('/git/ref/tags/' + tag)
+          for attempt in range(8):
+              tag_ref = get('/git/ref/tags/' + tag, missing=True)
+              if tag_ref is not None:
+                  break
+              if attempt < 7:
+                  time.sleep(1)
+          assert tag_ref is not None
           assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
           asset, = [item for item in published['assets'] if item['name'] == exe.name]
           assert asset['size'] == manifest['exe_bytes']
