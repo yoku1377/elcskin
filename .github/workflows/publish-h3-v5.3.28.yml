@@ -28,9 +28,9 @@ jobs:
           import os
           from pathlib import Path
           import re
-          import subprocess
           import time
           import urllib.error
+          import urllib.parse
           import urllib.request
           import uuid
           
@@ -39,16 +39,20 @@ jobs:
           TOKEN = os.environ['GH_TOKEN']
           assert REPO == 'yoku1377/elcskin'
           API = 'https://api.github.com/repos/' + REPO
+          EXPECTED_TREE = '8bb1419e613d7510795d4343bb25556f720b985f'
+          EXPECTED_SHA = 'bda958373f7e90f9555e967055deb86b9ec4c93474075d3069cf6eff49a63c84'
+          TITLE = 'TacAI H3 v5.3.28 · ZP-500N 自动采集'
+          TEMP_TAG = 'untagged-402266bdc89f2fe9537d'
+          
+          def headers(**extra):
+              return {'Authorization': 'Bearer ' + TOKEN, 'User-Agent': 'TacAI-verified-release',
+                      'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28',
+                      'Cache-Control': 'no-cache', **extra}
           
           def get(path, missing=False):
               separator = '&' if '?' in path else '?'
-              request = urllib.request.Request(API + path + separator + '_tacai_nonce=' + uuid.uuid4().hex, headers={
-                  'Authorization': 'Bearer ' + TOKEN,
-                  'User-Agent': 'TacAI-verified-release',
-                  'Accept': 'application/vnd.github+json',
-                  'X-GitHub-Api-Version': '2022-11-28',
-                  'Cache-Control': 'no-cache',
-              })
+              request = urllib.request.Request(API + path + separator + '_tacai_nonce=' + uuid.uuid4().hex,
+                                               headers=headers())
               try:
                   with urllib.request.urlopen(request, timeout=60) as response:
                       return json.load(response)
@@ -61,34 +65,24 @@ jobs:
               assert (method == 'POST' and path == '/releases') or (
                   method == 'PATCH' and re.fullmatch(r'/releases/[0-9]+', path))
               request = urllib.request.Request(API + path, method=method,
-                  data=json.dumps(payload).encode('utf-8'), headers={
-                      'Authorization': 'Bearer ' + TOKEN,
-                      'User-Agent': 'TacAI-verified-release',
-                      'Accept': 'application/vnd.github+json',
-                      'Content-Type': 'application/json',
-                      'X-GitHub-Api-Version': '2022-11-28',
-                  })
+                  data=json.dumps(payload).encode('utf-8'), headers=headers(**{'Content-Type': 'application/json'}))
               with urllib.request.urlopen(request, timeout=60) as response:
                   return json.load(response)
           
-          def gh(*args):
-              subprocess.run(['gh', *args, '--repo', REPO], check=True)
+          def source_tree(commit_sha):
+              commit = get('/git/commits/' + commit_sha)
+              root = get('/git/trees/' + commit['tree']['sha'])
+              project, = [entry for entry in root['tree'] if entry['path'] == 'TacAI-H3.0-v1']
+              assert project['type'] == 'tree'
+              return project['sha']
           
-          def digest(path):
-              return hashlib.sha256(path.read_bytes()).hexdigest()
+          def tag_ref(tag):
+              result = get('/git/ref/tags/' + tag, missing=True)
+              if result is not None:
+                  assert result['object']['type'] == 'commit' and result['object']['sha'] == COMMIT
+              return result
           
-          def release_by_tag(tag):
-              for page in range(1, 21):
-                  releases = get('/releases?per_page=100&page=' + str(page))
-                  matches = [item for item in releases if item['tag_name'] == tag]
-                  assert len(matches) <= 1
-                  if matches:
-                      return get('/releases/' + str(matches[0]['id']))
-                  if len(releases) < 100:
-                      return None
-              raise RuntimeError('Release listing exceeds the bounded search')
-          
-          def read_release_until(release_id, condition):
+          def read_until(release_id, condition):
               for attempt in range(8):
                   result = get('/releases/' + str(release_id))
                   if condition(result):
@@ -97,17 +91,46 @@ jobs:
                       time.sleep(1)
               raise RuntimeError('Release metadata did not reach the expected state')
           
+          class SafeRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, request, response, code, message, response_headers, new_url):
+                  assert urllib.parse.urlsplit(new_url).scheme == 'https'
+                  redirect = super().redirect_request(request, response, code, message, response_headers, new_url)
+                  if redirect is not None:
+                      for collection in (redirect.headers, redirect.unredirected_hdrs):
+                          for key in list(collection):
+                              if key.lower() == 'authorization':
+                                  del collection[key]
+                  return redirect
+          
+          def download_asset(asset_id, destination):
+              url = API + '/releases/assets/' + str(asset_id) + '?_tacai_nonce=' + uuid.uuid4().hex
+              request = urllib.request.Request(url, headers=headers(Accept='application/octet-stream'))
+              opener = urllib.request.build_opener(SafeRedirect())
+              with opener.open(request, timeout=120) as response, destination.open('xb') as output:
+                  while True:
+                      chunk = response.read(1024 * 1024)
+                      if not chunk:
+                          break
+                      output.write(chunk)
+          
+          def upload_asset(release_id, path):
+              raw = path.read_bytes()
+              url = ('https://uploads.github.com/repos/' + REPO + '/releases/' + str(release_id) +
+                     '/assets?name=' + urllib.parse.quote(path.name, safe=''))
+              request = urllib.request.Request(url, data=raw, method='POST', headers=headers(**{
+                  'Content-Type': 'application/octet-stream', 'Content-Length': str(len(raw))}))
+              with urllib.request.urlopen(request, timeout=180) as response:
+                  assert response.status == 201
+                  asset = json.load(response)
+              assert asset['name'] == path.name and asset['size'] == len(raw) and asset['state'] == 'uploaded'
+              return asset
+          
           manifest_file = get('/contents/.github/h3-releases/h3-v5.3.28-20261021.json?ref=' + COMMIT)
           manifest = json.loads(base64.b64decode(manifest_file['content']))
-          assert manifest['exe_sha256'] == 'bda958373f7e90f9555e967055deb86b9ec4c93474075d3069cf6eff49a63c84'
-          assert manifest['exe_bytes'] == 63030531
+          assert manifest['exe_sha256'] == EXPECTED_SHA and manifest['exe_bytes'] == 63030531
           assert manifest['tag'] == 'h3-v5.3.28-20261021'
           assert manifest['filename'] == 'TacAI H3 v5.3.28 ZP500N Stream.exe'
-          assert manifest['source_tree_sha'] == '8bb1419e613d7510795d4343bb25556f720b985f'
-          commit = get('/git/commits/' + COMMIT)
-          root = get('/git/trees/' + commit['tree']['sha'])
-          project, = [entry for entry in root['tree'] if entry['path'] == 'TacAI-H3.0-v1']
-          assert project['type'] == 'tree' and project['sha'] == manifest['source_tree_sha']
+          assert manifest['source_tree_sha'] == EXPECTED_TREE == source_tree(COMMIT)
           parts = manifest['parts']
           assert parts and sum(part['bytes'] for part in parts) == manifest['exe_bytes']
           for index, part in enumerate(parts):
@@ -119,8 +142,7 @@ jobs:
               assert blob['encoding'] == 'base64'
               raw = base64.b64decode(''.join(blob['content'].split()), validate=True)
               assert len(raw) == part['bytes'] == blob['size']
-              header = ('blob ' + str(len(raw)) + '\0').encode('ascii')
-              assert hashlib.sha1(header + raw).hexdigest() == part['sha']
+              assert hashlib.sha1(('blob ' + str(len(raw)) + '\0').encode('ascii') + raw).hexdigest() == part['sha']
               return raw
           
           out = Path('verified-release')
@@ -129,85 +151,62 @@ jobs:
           with ThreadPoolExecutor(max_workers=4) as pool, exe.open('xb') as output:
               for raw in pool.map(load_part, parts):
                   output.write(raw)
-          assert exe.stat().st_size == manifest['exe_bytes']
-          assert digest(exe) == manifest['exe_sha256']
+          assert exe.stat().st_size == manifest['exe_bytes'] and hashlib.sha256(exe.read_bytes()).hexdigest() == EXPECTED_SHA
           checksum = out / 'SHA256SUMS.txt'
-          checksum.write_text(manifest['exe_sha256'] + '  ' + exe.name + '\n', encoding='utf-8')
-          notes = out / 'release-notes.md'
-          notes.write_text('''TacAI H3 v5.3.28，2026-10-21 构建。
-          
-          - UART、CH341/CH347 SPI 采集与 SPI 快照恢复。
-          - ZP-500N 自动参考采集：选择实际串口（现场 COM13）、2400 / 8N1。
-          - 保存 RAW24、真实测力计 N 值、原始串口字节、时间和标定步骤，供模型调优。
-          - 串口真实值保持原样，不增加偏移或倍率；当前参考输出分辨率为 0.1 N。
-          - 535 项离线回归通过、8 项缺外部夹具跳过；生产 C 状态注入 10 例及无硬件 EXE 启动自检通过。
-          
-          下载 Assets 中的 EXE 即可运行，无需安装 Python。源码与使用说明位于仓库 TacAI-H3.0-v1 目录。
-          发布附件由已验证 EXE 原始字节重建，经大小、SHA256 和上传后下载回读核对；本流程不重新编译。
-          ''', encoding='utf-8')
+          checksum.write_text(EXPECTED_SHA + '  ' + exe.name + '\n', encoding='utf-8')
           tag = manifest['tag']
-          tag_ref = get('/git/ref/tags/' + tag, missing=True)
-          if tag_ref is not None:
-              assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
-          if manifest.get('existing_release_id') is not None:
-              assert manifest['existing_release_id'] == 419051061
-              release = get('/releases/' + str(manifest['existing_release_id']))
-              assert release['id'] == manifest['existing_release_id'] and release['tag_name'] == tag
-          else:
-              release = release_by_tag(tag)
-          if release is None:
-              release = write('POST', '/releases', {
-                  'tag_name': tag, 'target_commitish': COMMIT,
-                  'name': 'TacAI H3 v5.3.28 · ZP-500N 自动采集',
-                  'body': notes.read_text(encoding='utf-8'), 'draft': True,
-              })
-          assert release is not None
-          if release['target_commitish'] != COMMIT:
-              assert release['id'] == 419051061 and release['draft'] and release['assets'] == []
-              assert release['tag_name'] == tag and tag_ref is None
-              assert release['target_commitish'] == '933df4fefa06816b0a3ecb77d00a41e552b0321d'
-              previous_commit = get('/git/commits/' + release['target_commitish'])
-              previous_root = get('/git/trees/' + previous_commit['tree']['sha'])
-              previous_project, = [entry for entry in previous_root['tree'] if entry['path'] == 'TacAI-H3.0-v1']
-              assert previous_project['type'] == 'tree' and previous_project['sha'] == manifest['source_tree_sha']
-              assert get('/git/ref/tags/' + tag, missing=True) is None
-              release = write('PATCH', '/releases/' + str(release['id']), {'target_commitish': COMMIT})
-              release = read_release_until(release['id'], lambda item: item['target_commitish'] == COMMIT)
-          assert release['target_commitish'] == COMMIT
-          assert release['tag_name'] == tag
-          tag_ref = get('/git/ref/tags/' + tag, missing=True)
-          if tag_ref is not None:
-              assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
-          assets = {item['name']: item for item in release['assets']}
-          for path in (exe, checksum):
-              if path.name not in assets:
-                  assert release['draft'], 'Published release is missing a required verified asset'
-                  gh('release', 'upload', tag, str(path))
+          assert manifest['existing_release_id'] == 419051061
+          release = get('/releases/419051061')
+          assert release['id'] == 419051061 and release['name'] == TITLE
+          assert release['tag_name'] in {tag, TEMP_TAG}
+          current_tag = tag_ref(tag)
+          if release['target_commitish'] != COMMIT or release['tag_name'] != tag:
+              assert release['draft'] and release['assets'] == [] and current_tag is None
+              assert release['target_commitish'] in {
+                  '933df4fefa06816b0a3ecb77d00a41e552b0321d',
+                  'de2c920983a498ded893cbaf202545120bee6268', COMMIT,
+              }
+              assert source_tree(release['target_commitish']) == EXPECTED_TREE
+              assert tag_ref(tag) is None
+              release = write('PATCH', '/releases/419051061', {'tag_name': tag, 'target_commitish': COMMIT})
+              release = read_until(release['id'], lambda item: item['target_commitish'] == COMMIT)
+          assert release['target_commitish'] == COMMIT and release['tag_name'] in {tag, TEMP_TAG}
+          tag_ref(tag)
           verify = out / 'download-check'
           verify.mkdir()
           for path in (exe, checksum):
-              gh('release', 'download', tag, '--pattern', path.name, '--dir', str(verify))
-              assert (verify / path.name).read_bytes() == path.read_bytes(), path.name
-          tag_ref = get('/git/ref/tags/' + tag, missing=True)
-          if tag_ref is not None:
-              assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
+              candidates = [asset for asset in release['assets'] if asset['name'] == path.name]
+              assert len(candidates) <= 1
+              if candidates:
+                  asset = candidates[0]
+                  assert asset['size'] == path.stat().st_size and asset['state'] == 'uploaded'
+              else:
+                  assert release['draft']
+                  asset = upload_asset(release['id'], path)
+              downloaded = verify / path.name
+              download_asset(asset['id'], downloaded)
+              assert downloaded.read_bytes() == path.read_bytes(), path.name
+              if asset.get('digest'):
+                  assert asset['digest'] == 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
+          tag_ref(tag)
           if release['draft']:
-              gh('release', 'edit', tag, '--draft=false', '--latest')
-          published = read_release_until(release['id'], lambda item: not item['draft'] and
+              write('PATCH', '/releases/419051061', {
+                  'tag_name': tag, 'target_commitish': COMMIT, 'draft': False, 'make_latest': 'true',
+              })
+          published = read_until(release['id'], lambda item: not item['draft'] and item['tag_name'] == tag and
               {exe.name, checksum.name}.issubset({asset['name'] for asset in item['assets']}))
-          assert not published['draft']
+          assert published['target_commitish'] == COMMIT
           for attempt in range(8):
-              tag_ref = get('/git/ref/tags/' + tag, missing=True)
-              if tag_ref is not None:
+              current_tag = tag_ref(tag)
+              if current_tag is not None:
                   break
               if attempt < 7:
                   time.sleep(1)
-          assert tag_ref is not None
-          assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
-          asset, = [item for item in published['assets'] if item['name'] == exe.name]
+          assert current_tag is not None
+          asset, = [asset for asset in published['assets'] if asset['name'] == exe.name]
           assert asset['size'] == manifest['exe_bytes']
           if asset.get('digest'):
-              assert asset['digest'] == 'sha256:' + manifest['exe_sha256']
+              assert asset['digest'] == 'sha256:' + EXPECTED_SHA
           print(json.dumps({'release': published['html_url'], 'exe': asset['browser_download_url'],
-                            'sha256': manifest['exe_sha256'], 'bytes': asset['size']}, ensure_ascii=False))
+                            'sha256': EXPECTED_SHA, 'bytes': asset['size']}, ensure_ascii=False))
           PY
