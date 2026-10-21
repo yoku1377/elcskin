@@ -1,0 +1,56 @@
+# Local and generated working data
+/tmp/
+/archive/
+/outputs/
+/release/
+**/__pycache__/
+**/logs/
+**/build_*/
+*.py[cod]
+*.log
+*.tmp
+
+# Python / Node environments and caches
+.venv/
+venv/
+node_modules/
+.pytest_cache/
+.mypy_cache/
+
+# PC packaging outputs
+**/build/
+**/dist/
+*.exe
+*.zip
+*.rar
+*.7z
+*.spec
+# WCH bridge DLLs are explicit external build inputs; see docs/CURRENT_BUILD.md.
+*.dll
+*.DLL
+
+# Firmware build outputs and deployable binaries
+*.o
+*.obj
+*.elf
+*.map
+*.hex
+*.bin
+*.tacai
+*.a
+*.d
+*.su
+
+# Raw captures and generated reports stay outside Git
+*.csv
+*.xlsx
+*.xls
+
+# Generated previews
+*_preview.png
+
+# Editor / OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

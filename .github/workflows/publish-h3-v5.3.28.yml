@@ -1,0 +1,158 @@
+name: Publish verified H3 v5.3.28 EXE
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/h3-releases/h3-v5.3.28-20261021.json'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: h3-v5.3.28-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Verify original EXE, upload draft assets, download-check and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          from concurrent.futures import ThreadPoolExecutor
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+          import urllib.error
+          import urllib.request
+          
+          REPO = os.environ['GITHUB_REPOSITORY']
+          COMMIT = os.environ['GITHUB_SHA']
+          TOKEN = os.environ['GH_TOKEN']
+          assert REPO == 'yoku1377/elcskin'
+          API = 'https://api.github.com/repos/' + REPO
+          
+          def get(path, missing=False):
+              request = urllib.request.Request(API + path, headers={
+                  'Authorization': 'Bearer ' + TOKEN,
+                  'User-Agent': 'TacAI-verified-release',
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              })
+              try:
+                  with urllib.request.urlopen(request, timeout=60) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as exc:
+                  if missing and exc.code == 404:
+                      return None
+                  raise
+          
+          def gh(*args):
+              subprocess.run(['gh', *args, '--repo', REPO], check=True)
+          
+          def digest(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+          
+          def release_by_tag(tag):
+              for page in range(1, 21):
+                  releases = get('/releases?per_page=100&page=' + str(page))
+                  matches = [item for item in releases if item['tag_name'] == tag]
+                  assert len(matches) <= 1
+                  if matches:
+                      return get('/releases/' + str(matches[0]['id']))
+                  if len(releases) < 100:
+                      return None
+              raise RuntimeError('Release listing exceeds the bounded search')
+          
+          manifest_file = get('/contents/.github/h3-releases/h3-v5.3.28-20261021.json?ref=' + COMMIT)
+          manifest = json.loads(base64.b64decode(manifest_file['content']))
+          assert manifest['exe_sha256'] == 'bda958373f7e90f9555e967055deb86b9ec4c93474075d3069cf6eff49a63c84'
+          assert manifest['exe_bytes'] == 63030531
+          assert manifest['tag'] == 'h3-v5.3.28-20261021'
+          assert manifest['filename'] == 'TacAI H3 v5.3.28 ZP500N Stream.exe'
+          assert manifest['source_tree_sha'] == '8bb1419e613d7510795d4343bb25556f720b985f'
+          commit = get('/git/commits/' + COMMIT)
+          root = get('/git/trees/' + commit['tree']['sha'])
+          project, = [entry for entry in root['tree'] if entry['path'] == 'TacAI-H3.0-v1']
+          assert project['type'] == 'tree' and project['sha'] == manifest['source_tree_sha']
+          parts = manifest['parts']
+          assert parts and sum(part['bytes'] for part in parts) == manifest['exe_bytes']
+          for index, part in enumerate(parts):
+              assert part['index'] == index and 0 < part['bytes'] <= 3600000
+              assert re.fullmatch('[0-9a-f]{40}', part['sha'])
+          
+          def load_part(part):
+              blob = get('/git/blobs/' + part['sha'])
+              assert blob['encoding'] == 'base64'
+              raw = base64.b64decode(''.join(blob['content'].split()), validate=True)
+              assert len(raw) == part['bytes'] == blob['size']
+              header = ('blob ' + str(len(raw)) + '\0').encode('ascii')
+              assert hashlib.sha1(header + raw).hexdigest() == part['sha']
+              return raw
+          
+          out = Path('verified-release')
+          out.mkdir(exist_ok=False)
+          exe = out / 'TacAI_H3_v5.3.28_ZP500N_Stream.exe'
+          with ThreadPoolExecutor(max_workers=4) as pool, exe.open('xb') as output:
+              for raw in pool.map(load_part, parts):
+                  output.write(raw)
+          assert exe.stat().st_size == manifest['exe_bytes']
+          assert digest(exe) == manifest['exe_sha256']
+          checksum = out / 'SHA256SUMS.txt'
+          checksum.write_text(manifest['exe_sha256'] + '  ' + exe.name + '\n', encoding='utf-8')
+          notes = out / 'release-notes.md'
+          notes.write_text('''TacAI H3 v5.3.28，2026-10-21 构建。
+          
+          - UART、CH341/CH347 SPI 采集与 SPI 快照恢复。
+          - ZP-500N 自动参考采集：选择实际串口（现场 COM13）、2400 / 8N1。
+          - 保存 RAW24、真实测力计 N 值、原始串口字节、时间和标定步骤，供模型调优。
+          - 串口真实值保持原样，不增加偏移或倍率；当前参考输出分辨率为 0.1 N。
+          - 535 项离线回归通过、8 项缺外部夹具跳过；生产 C 状态注入 10 例及无硬件 EXE 启动自检通过。
+          
+          下载 Assets 中的 EXE 即可运行，无需安装 Python。源码与使用说明位于仓库 TacAI-H3.0-v1 目录。
+          发布附件由已验证 EXE 原始字节重建，经大小、SHA256 和上传后下载回读核对；本流程不重新编译。
+          ''', encoding='utf-8')
+          tag = manifest['tag']
+          tag_ref = get('/git/ref/tags/' + tag, missing=True)
+          if tag_ref is not None:
+              assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
+          release = release_by_tag(tag)
+          if release is None:
+              gh('release', 'create', tag, '--target', COMMIT, '--title', 'TacAI H3 v5.3.28 · ZP-500N 自动采集',
+                 '--notes-file', str(notes), '--draft')
+              release = release_by_tag(tag)
+          assert release is not None
+          assert release['target_commitish'] == COMMIT
+          assert release['tag_name'] == tag
+          tag_ref = get('/git/ref/tags/' + tag, missing=True)
+          if tag_ref is not None:
+              assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
+          assets = {item['name']: item for item in release['assets']}
+          for path in (exe, checksum):
+              if path.name not in assets:
+                  assert release['draft'], 'Published release is missing a required verified asset'
+                  gh('release', 'upload', tag, str(path))
+          verify = out / 'download-check'
+          verify.mkdir()
+          for path in (exe, checksum):
+              gh('release', 'download', tag, '--pattern', path.name, '--dir', str(verify))
+              assert (verify / path.name).read_bytes() == path.read_bytes(), path.name
+          if release['draft']:
+              gh('release', 'edit', tag, '--draft=false', '--latest')
+          published = release_by_tag(tag)
+          assert not published['draft']
+          tag_ref = get('/git/ref/tags/' + tag)
+          assert tag_ref['object']['type'] == 'commit' and tag_ref['object']['sha'] == COMMIT
+          asset, = [item for item in published['assets'] if item['name'] == exe.name]
+          assert asset['size'] == manifest['exe_bytes']
+          if asset.get('digest'):
+              assert asset['digest'] == 'sha256:' + manifest['exe_sha256']
+          print(json.dumps({'release': published['html_url'], 'exe': asset['browser_download_url'],
+                            'sha256': manifest['exe_sha256'], 'bytes': asset['size']}, ensure_ascii=False))
+          PY

@@ -1,0 +1,133 @@
+{
+  "source_sha256": "00ae967ac6a21253cc53e32085423807c7817198d9328b17b936ed8ca075f375",
+  "table_rva": "0x159F0",
+  "record_size": 101,
+  "records": [
+    {
+      "device_id_match": "PID_55DA&MI_00",
+      "usb_class": 3,
+      "function_type": 0,
+      "chip_type": 1,
+      "interface_number": 0,
+      "chip_mode": 0,
+      "function_description": "CH347T.M0:USB2.0 To UART0"
+    },
+    {
+      "device_id_match": "PID_55DA&MI_02",
+      "usb_class": 3,
+      "function_type": 0,
+      "chip_type": 1,
+      "interface_number": 2,
+      "chip_mode": 0,
+      "function_description": "CH347T.M0:USB2.0 To UART1"
+    },
+    {
+      "device_id_match": "PID_55DB&MI_00",
+      "usb_class": 3,
+      "function_type": 0,
+      "chip_type": 1,
+      "interface_number": 0,
+      "chip_mode": 1,
+      "function_description": "CH347T.M1:USB2.0 To UART1"
+    },
+    {
+      "device_id_match": "PID_55DB&MI_02",
+      "usb_class": 0,
+      "function_type": 1,
+      "chip_type": 1,
+      "interface_number": 0,
+      "chip_mode": 1,
+      "function_description": "CH347T.M1:USB2.0 To SPI&IIC"
+    },
+    {
+      "device_id_match": "PID_55DC&MI_00",
+      "usb_class": 2,
+      "function_type": 0,
+      "chip_type": 1,
+      "interface_number": 0,
+      "chip_mode": 2,
+      "function_description": "CH347T.M2:USB2.0 HID To UART0"
+    },
+    {
+      "device_id_match": "PID_55DC&MI_01",
+      "usb_class": 2,
+      "function_type": 1,
+      "chip_type": 1,
+      "interface_number": 1,
+      "chip_mode": 2,
+      "function_description": "CH347T.M2:USB2.0 HID To SPI&IIC"
+    },
+    {
+      "device_id_match": "PID_55DD&MI_00",
+      "usb_class": 3,
+      "function_type": 0,
+      "chip_type": 1,
+      "interface_number": 0,
+      "chip_mode": 3,
+      "function_description": "CH347T.M3:USB2.0 To UART1"
+    },
+    {
+      "device_id_match": "PID_55DD&MI_02",
+      "usb_class": 0,
+      "function_type": 1,
+      "chip_type": 1,
+      "interface_number": 2,
+      "chip_mode": 3,
+      "function_description": "CH347T.M3:USB2.0 To JTAG&I2C"
+    },
+    {
+      "device_id_match": "PID_55DE&MI_00",
+      "usb_class": 3,
+      "function_type": 0,
+      "chip_type": 2,
+      "interface_number": 0,
+      "chip_mode": 0,
+      "function_description": "CH347F.M0:USB2.0 To VCP UART0"
+    },
+    {
+      "device_id_match": "PID_55DE&MI_02",
+      "usb_class": 3,
+      "function_type": 0,
+      "chip_type": 2,
+      "interface_number": 2,
+      "chip_mode": 0,
+      "function_description": "CH347F.M0:USB2.0 To VCP UART1"
+    },
+    {
+      "device_id_match": "PID_55DE&MI_04",
+      "usb_class": 0,
+      "function_type": 3,
+      "chip_type": 2,
+      "interface_number": 4,
+      "chip_mode": 0,
+      "function_description": "CH347F.M0:USB2.0 To SPI&I2C&JTAG&SWD"
+    },
+    {
+      "device_id_match": "PID_55E5&MI_00",
+      "usb_class": 2,
+      "function_type": 0,
+      "chip_type": 2,
+      "interface_number": 0,
+      "chip_mode": 1,
+      "function_description": "CH347F.M1:USB2.0 HID To UART0"
+    },
+    {
+      "device_id_match": "PID_55E5&MI_02",
+      "usb_class": 2,
+      "function_type": 0,
+      "chip_type": 2,
+      "interface_number": 2,
+      "chip_mode": 1,
+      "function_description": "CH347F.M1:USB2.0 HID To UART1"
+    },
+    {
+      "device_id_match": "PID_55E5&MI_01",
+      "usb_class": 2,
+      "function_type": 3,
+      "chip_type": 2,
+      "interface_number": 1,
+      "chip_mode": 1,
+      "function_description": "CH347F.M1:USB2.0 HID To SPI&I2C"
+    }
+  ]
+}

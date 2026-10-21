@@ -1,0 +1,23 @@
+#ifndef TACAI_IAP_LAYOUT_H
+#define TACAI_IAP_LAYOUT_H
+
+#include <stdint.h>
+
+#define TACAI_FLASH_BASE          0x08000000u
+#define TACAI_BOOTLOADER_SIZE     0x00002000u
+#define TACAI_APP_START           0x08002000u
+#define TACAI_METADATA_ADDRESS    0x0800F000u
+#define TACAI_CONFIG_ADDRESS      0x0800F800u
+#define TACAI_FLASH_END           0x08010000u
+#define TACAI_FLASH_PAGE_SIZE     0x00000800u
+#define TACAI_APP_MAX_SIZE        (TACAI_METADATA_ADDRESS - TACAI_APP_START)
+
+#define TACAI_IAP_RAM_MAGIC_ADDR  0x20001FF0u
+#define TACAI_IAP_RAM_MAGIC       0x33415049u /* "IAP3" */
+#define TACAI_SPI_IAP_RAM_MAGIC   0x33535049u /* SPI entry; original UART marker retained */
+
+#define TACAI_MODEL_ID            "H3G031G8"
+#define TACAI_MODEL_ID_SIZE       12u
+#define TACAI_CONFIRM_XOR         0xA5A55A5Au
+
+#endif
