@@ -1,0 +1,117 @@
+{
+  "tag": "h3-v5.3.28-20261021",
+  "filename": "TacAI H3 v5.3.28 ZP500N Stream.exe",
+  "exe_bytes": 63030531,
+  "exe_sha256": "bda958373f7e90f9555e967055deb86b9ec4c93474075d3069cf6eff49a63c84",
+  "source_tree_sha": "8bb1419e613d7510795d4343bb25556f720b985f",
+  "parts": [
+    {
+      "index": 0,
+      "offset": 0,
+      "bytes": 3600000,
+      "sha": "229f6f37078aa85fe33dccbcd88fe9dabd8d2f9b"
+    },
+    {
+      "index": 1,
+      "offset": 3600000,
+      "bytes": 3600000,
+      "sha": "1eab85fe6aba3d44be39915635cd665457bbcb19"
+    },
+    {
+      "index": 2,
+      "offset": 7200000,
+      "bytes": 3600000,
+      "sha": "7fac00e37adf7e0463b8e72a33b18fa5263cb57e"
+    },
+    {
+      "index": 3,
+      "offset": 10800000,
+      "bytes": 3600000,
+      "sha": "bb9e29568565c6d463ca934474d5f49609075211"
+    },
+    {
+      "index": 4,
+      "offset": 14400000,
+      "bytes": 3600000,
+      "sha": "2ed957648d9b4a701505ca9eed0bed2e9a22bcfe"
+    },
+    {
+      "index": 5,
+      "offset": 18000000,
+      "bytes": 3600000,
+      "sha": "a4a6d8e1cfab2ded9b3f9ecc31455727ffb06965"
+    },
+    {
+      "index": 6,
+      "offset": 21600000,
+      "bytes": 3600000,
+      "sha": "3d71169aa0edd6141b0e5648fbad8df3dce3ac69"
+    },
+    {
+      "index": 7,
+      "offset": 25200000,
+      "bytes": 3600000,
+      "sha": "049b3a09247328c49b017e3ab480279083cccef1"
+    },
+    {
+      "index": 8,
+      "offset": 28800000,
+      "bytes": 3600000,
+      "sha": "99765ce3823b291922c97d59af23d9e8fb086eff"
+    },
+    {
+      "index": 9,
+      "offset": 32400000,
+      "bytes": 3600000,
+      "sha": "101f9e5dd23616c2f4f0c28abbe776b044088355"
+    },
+    {
+      "index": 10,
+      "offset": 36000000,
+      "bytes": 3600000,
+      "sha": "9340a9288a840467b3cc8c078513baee1322e035"
+    },
+    {
+      "index": 11,
+      "offset": 39600000,
+      "bytes": 3600000,
+      "sha": "f322cb9e39862ef38084f7d8099ada0c8a03984a"
+    },
+    {
+      "index": 12,
+      "offset": 43200000,
+      "bytes": 3600000,
+      "sha": "0132ab2b672106115d66e006b3429275e14ff471"
+    },
+    {
+      "index": 13,
+      "offset": 46800000,
+      "bytes": 3600000,
+      "sha": "889e607ef9a4da31c02e7fb06fbd678441b9ffa0"
+    },
+    {
+      "index": 14,
+      "offset": 50400000,
+      "bytes": 3600000,
+      "sha": "6fd6d242792c40f1a97b8f2be032181c0981fa75"
+    },
+    {
+      "index": 15,
+      "offset": 54000000,
+      "bytes": 3600000,
+      "sha": "234768e3dd84c88c18a36af5729bd9b93c3c6fa9"
+    },
+    {
+      "index": 16,
+      "offset": 57600000,
+      "bytes": 3600000,
+      "sha": "66086d6db7c7a7431451188efb5c11af3a986aa5"
+    },
+    {
+      "index": 17,
+      "offset": 61200000,
+      "bytes": 1830531,
+      "sha": "aa029b543e93cd438d6d91d3822320bed9dd648d"
+    }
+  ]
+}
